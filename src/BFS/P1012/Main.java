@@ -8,8 +8,8 @@ public class Exam1012 {
 	static int[][] d;
 	static boolean[][] checked;
 	static int count;
-	static int[] dx = { 0, -1, 0, 1 };
-	static int[] dy = { 1, 0, -1, 0 };
+	static int[] dx = {0, -1, 0, 1};
+	static int[] dy = {1, 0, -1, 0};
 
 	
 
