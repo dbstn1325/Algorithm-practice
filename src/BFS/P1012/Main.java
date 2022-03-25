@@ -4,12 +4,12 @@ import java.util.*;
 public class Exam1012 {
 
 	static int M, N;
-    static int K;
+    	static int K;
 	static int[][] d;
 	static boolean[][] checked;
 	static int count;
-	static int[] dx = { 0, -1, 0, 1 };
-	static int[] dy = { 1, 0, -1, 0 };
+	static int[] dx = {0, -1, 0, 1};
+	static int[] dy = {1, 0, -1, 0};
 
 	
 
@@ -47,30 +47,30 @@ public class Exam1012 {
 		}
 		
 	}
-    
-    static void bfs(int x, int y) {
-		qeue<int[]> q = new LinkedList<int[]>();
-		q.add(new int[] { x, y });
+   
+	public static void bfs(int x, int y) {
+			qeue<int[]> q = new LinkedList<int[]>();
+			q.add(new int[] { x, y });
 
-		while (!q.isEmpty()) {
-			x = q.peek()[0];
-			y = q.peek()[1];
-            
-			checked[x][y] = true;
-			q.poll();
-			for (int i = 0; i < 4; i++) {
-				int cx = x + dx[i];
-				int cy = y + dy[i];
+			while (!q.isEmpty()) {
+				x = q.peek()[0];
+				y = q.peek()[1];
 
-				if (cx >= 0 && cy >= 0 && cx < M && cy < N) {
-					if (!checked[cx][cy] && d[cx][cy] == 1) {
-						q.add(new int[] { cx, cy });
-						checked[cx][cy] = true;
+				checked[x][y] = true;
+				q.poll();
+				for (int i = 0; i < 4; i++) {
+					int cx = x + dx[i];
+					int cy = y + dy[i];
+
+					if (cx >= 0 && cy >= 0 && cx < M && cy < N) {
+						if (!checked[cx][cy] && d[cx][cy] == 1) {
+							q.add(new int[] { cx, cy });
+							checked[cx][cy] = true;
+						}
 					}
+
 				}
 
 			}
-
 		}
-	}
 }
