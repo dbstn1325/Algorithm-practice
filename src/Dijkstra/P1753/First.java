@@ -6,14 +6,16 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.StringTokenizer;
 
-public class Main {
+public class First {
     public static int V, E, K;
     public static int dp[];
     public static List<Node>[] graph;
+
     public static void main(String[] args) throws IOException {
         System.setIn(new FileInputStream("src/Dijkstra/P1753/input.txt"));
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
@@ -43,42 +45,62 @@ public class Main {
 
         dp = new int[V+1];
         Arrays.fill(dp, Integer.MAX_VALUE);
-        StringBuilder sb = new StringBuilder();
 
-        bfs(new Node(K, 0));
+
         for(int i=1; i<=V; i++){
             if(i==K) {
-                sb.append("0").append("\n");
+                System.out.println(0);
                 continue;
             }
 
+            // 1  2 3
+            // 2  3 4
+            // 3  4
+            // 4
+            // 5  1
+
+            bfs(i, new Node(K, 0));
             if(dp[i] == Integer.MAX_VALUE) {
-                sb.append("INF").append("\n");
+                System.out.println("INF");
                 continue;
             }
-            sb.append(dp[i]).append("\n");
+            System.out.println(dp[i]);
         }
-        System.out.println(sb);
     }
 
-    public static void bfs(Node startNode) {
-        PriorityQueue<Node> queue = new PriorityQueue<>(); //queue 내부 weight 기준으로 오름차순 보장
+    public static void bfs(int target, Node startNode) {
+        Queue<Node> queue = new LinkedList<>();
         queue.add(startNode);
 
         while(!queue.isEmpty()) {
             Node curNode = queue.poll();
 
-            for (Node nextNode : graph[curNode.node]) {
-                if(dp[nextNode.node] > curNode.weight + nextNode.weight) {
-
-                    dp[nextNode.node] = curNode.weight + nextNode.weight;
-                    queue.add(new Node(nextNode.node, dp[nextNode.node]));
+            for (Node nextNode : graph[curNode.node]) { // 1  2 3
+//                System.out.println(nextNode.node);
+                if(curNode.weight + nextNode.weight >= dp[target]) { //1->3->2 (4) (3)
+                    continue;
                 }
+
+                if (nextNode.node == target) {
+
+                    if (dp[target] == Integer.MAX_VALUE) {
+                        dp[target] = curNode.weight + nextNode.weight;
+                        continue;
+                    }
+
+                    if (dp[target] != Integer.MAX_VALUE) {
+                        dp[target] = Math.min(dp[target], curNode.weight + nextNode.weight);
+                        continue;
+                    }
+                }
+
+
+                queue.add(new Node(nextNode.node, curNode.weight + nextNode.weight));
             }
         }
     }
 
-    public static class Node implements Comparable<Node>{
+    public static class Node {
         int node;
         int weight;
 
@@ -86,17 +108,5 @@ public class Main {
             this.node = node;
             this.weight = weight;
         }
-
-        @Override
-        public int compareTo(Node o) {
-            if(this.weight > o.weight) {
-                return 1;
-            }
-            return -1;
-        }
     }
-
 }
-
-
-
