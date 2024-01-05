@@ -19,6 +19,8 @@ public class Factorial {
         System.out.println(fact(n) / (fact(k) * fact(n-k)));
     }
 
+    //5C2 = n! / r!(n-r)!
+
     public static int fact(int n) {
         if(n==0) {
             return 1;

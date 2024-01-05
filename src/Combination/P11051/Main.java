@@ -9,6 +9,12 @@ import java.util.StringTokenizer;
 
 public class Main {
     public static long[][] dp;
+    //(a+b)^2 = 1 * a^2 + 2 * ab + 1* b^2
+            // a:2,b:0 + a:1,b:1 + a:0,b:2
+            //2C0 + 2C1 + 2C0
+
+
+    //5C2 = n! / r!(n-r)!
 
     public static void main(String[] args) throws IOException {
         System.setIn(new FileInputStream("src/Combination/P11051/input.txt"));
