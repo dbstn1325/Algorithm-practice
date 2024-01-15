@@ -8,12 +8,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.StringTokenizer;
-import java.util.stream.Collectors;
 
 public class Main {
 
     static int m, t;
-    static ArrayList<Monster> monsters = new ArrayList<>();
+
+    static Monsters[][] eggs;
+    static Monsters[][] monsters;
+    static Monsters[][] moveMonsters;
+    static Monsters[][] die;
     static Packman packman;
     static PriorityQueue<Packman> movePackman;
 
@@ -24,6 +27,7 @@ public class Main {
     static int[] pdc = {0, -1, 0, 1};
 
     static int turn = 1;
+    static int answer = 0;
 
     public static void main(String[] args) throws IOException {
         System.setIn(new FileInputStream("src/Samsung_SW_역량테스트/Y2021_팩맨/input.txt"));
@@ -39,96 +43,141 @@ public class Main {
         int c = Integer.parseInt(stk.nextToken()) - 1;
         packman = new Packman(r, c);
 
+        monsters = new Monsters[4][4];
+        eggs = new Monsters[4][4];
+        die = new Monsters[4][4];
+        for(int i=0; i<4; i++) {
+            for(int j=0; j<4; j++) {
+                monsters[i][j] = new Monsters();
+                eggs[i][j] = new Monsters();
+                die[i][j] = new Monsters();
+            }
+        }
+
         for(int i=0; i<m; i++) {
             stk = new StringTokenizer(br.readLine());
             int mr = Integer.parseInt(stk.nextToken()) - 1;
             int mc = Integer.parseInt(stk.nextToken()) - 1;
             int md = Integer.parseInt(stk.nextToken()) - 1; //초기 문제 이해
 
-            monsters.add(new Monster(mr, mc, md, false, false, true));
+            monsters[mr][mc].addMonster(new Monster(md, false, false));
         }
 
-//        System.out.println("1".compareTo("0")); true
-//        System.out.println('1' > '0'); true
-//        System.out.println('3' - '0'); int 3
-
-        while(turn <= t) {
-            monsterReplicate();
-            moveMonster();
-            packmanEat();
-            deleteMonster();
-            monsters.stream()
-                    .filter(v-> !v.isHatch())
-                    .forEach(Monster::hatch);
+        while(turn <= t) {          //새로 할때는 monsters[2][1]에 데이터 있음
+            monsterReplicate(turn); //moveMonster를 monsters로 복사, monsters 기준 살아있는 애들 알낳기(eggs)     최초: 입력알담기 / moveMonster 중 삭제된 애들까지 포함해서, mosters로 복사
+            moveMonster();          //mosters 기준, moveMonsters 갱신 - 이동 완료
+            packmanEat();           //moveMonsters 중 죽임 -  이동한 애 중 먹음, die
+            deleteMonster();        //moveMonsters 기준 삭제 카운트 - 이동한 애 삭제
+            hatchMonster();         //최초 알 낳은 장소 기준 moveMonsters에 낳기 - 알이였던 애들 부활
             turn++;
         }
 
-
-        int count = (int) monsters.stream()
-                .filter(v -> v.isTotalAlive())
-                .count();
-
-        System.out.println(count);
+        calculateAnswer();
+        System.out.println(answer);
     }
 
-    public static void deleteMonster() {
-        for(Monster monster: monsters) {
-            if(monster.isDeleteStart()) {
-                monster.increaseDeleteCnt();
+    static void monsterReplicate(int turn) {
+        if(turn >= 2) {
+            monsters = moveMonsters;
+        }
+//        System.out.println(die[2][2].getMonsters().size());
+        for(int i=0; i<4; i++) {
+            for(int j=0; j<4; j++) {
+                ArrayList<Monster> monsterList = monsters[i][j].getMonsters();
+                for(Monster monster: monsterList) {
+                    //나중에 부화해야하기 때문에
+                    eggs[i][j].addMonster(new Monster(monster.d, false, false));
+                }
             }
-            if(monster.isCompleteDelete()) {
-                monster.delete();
+        }
+    }
+
+    public static void hatchMonster() {
+        for(int i=0; i<4; i++) {
+            for(int j=0; j<4; j++) {
+                ArrayList<Monster> monsterList = eggs[i][j].getMonsters();
+                for(Monster monster: monsterList) {
+                    moveMonsters[i][j].addMonster(new Monster(monster.d, false, false));
+                }
+            }
+        }
+        eggs = new Monsters[4][4];
+        for(int i=0; i<4; i++) {
+            for(int j=0; j<4; j++) {
+                eggs[i][j] = new Monsters();
             }
         }
     }
 
     private static void moveMonster() {
-        for(Monster monster: monsters) {
-            if(!monster.isAlive()) continue;
-            if(!monster.isHatch()) continue;
+        init();
+        for(int i=0; i<4; i++) {
+            for(int j=0; j<4; j++) {
+                List<Monster> curMonsters = monsters[i][j].getMonsters();
 
-            int[] next = monster.getNext();
-            int nr = next[0];
-            int nc = next[1];
+                for(Monster monster: curMonsters) {
+                    int[] next = monster.getNext(i, j);
+                    int nr = next[0];
+                    int nc = next[1];
 
-            boolean isDie = isDie(nr, nc);
-            boolean isPackman = isPackman(nr, nc);
-            boolean isGo = false;
-            int cnt = 0;
+                    if(outOfBlock(nr, nc)) {
+                        moveByRotate(monster, i, j);
+                        continue;
+                    };
 
-            if(isNotMove(nr, nc, isDie, isPackman)) {
-                int moveR, moveC;
-                while(true) {
-                    monster.rotate();
-                    moveR = monster.r + dr[monster.d];
-                    moveC = monster.c + dc[monster.d];
-
-                    if (!isNotMove(moveR, moveC, isDie(moveR, moveC), isPackman(moveR, moveC))) {
-                        isGo = true;
-                        break;
+                    boolean isDie = die[nr][nc].isDie();
+                    boolean isPackman = packman.isLocate(nr, nc);
+                    if(isNotMove(isDie, isPackman)) {
+                        moveByRotate(monster, i, j);
+                        continue;
                     }
-                    cnt++;
-                    if (cnt == 8) {
-                        break;
-                    }
+
+//                    monsters[i][j].remove(monster);
+//                    monsters[nr][nc].addMonster(new Monster(monster.d, false, false, true));
+                    moveMonsters[nr][nc].addMonster(monster);
                 }
 
-                if(isGo) {
-                    monster.move(moveR, moveC);
-                }
-                continue;
+            }
+        }
+    }
+
+    private static void moveByRotate(Monster monster, int curR, int curC) {
+        int moveR, moveC;
+        int cnt = 0;
+        boolean isGo = false;
+
+        while(true) {
+            monster.rotate();
+            cnt++;
+            moveR = curR + dr[monster.d];
+            moveC = curC + dc[monster.d];
+
+            if(outOfBlock(moveR, moveC)) {
+               continue;
             }
 
-//            System.out.println(nr + " " + nc);
-            monster.move(nr, nc);
-
+            if (!isNotMove(die[moveR][moveC].isDie(), packman.isLocate(moveR, moveC))) {
+                isGo = true;
+                break;
+            }
+            if (cnt > 7) {
+                break;
+            }
         }
+
+        if(isGo) {
+            moveMonsters[moveR][moveC].addMonster(monster);
+            return ;
+        }
+
+        moveMonsters[curR][curC].addMonster(monster);
     }
 
     private static void packmanEat() {
         movePackman = new PriorityQueue<>();
         dfs(packman.r, packman.c, 0, "", 0);
         Packman arrivePackman = movePackman.poll();
+//        System.out.println(arrivePackman.totalEat + " " + arrivePackman.first + arrivePackman.second + arrivePackman.third);
 
         packman.pushD(arrivePackman.first, arrivePackman.second, arrivePackman.third);
         packman.eat();
@@ -146,64 +195,135 @@ public class Main {
             int nc = curC + pdc[i];
 
             if(outOfBlock(nr, nc)) continue;
-            boolean rr = monsters.stream()
-                    .filter(v -> v.isLocation(nr, nc) && v.isWillDie >= 1)
-                    .count() >= 1; //탐색 시, 방향에만 의존해야 하기 때문에
+            boolean visited = moveMonsters[nr][nc].isVisited();
 
-            monsters.stream()
-                    .filter(v-> v.isLocation(nr, nc))
-                    .forEach(v->v.willDie());
+            moveMonsters[nr][nc].visited();
             int count = 0;
-            if(!rr) {
-                count = (int) monsters.stream()
-                        .filter(v -> v.canEat(nr, nc))
-                        .count();
+            if(!visited) {
+                count = moveMonsters[nr][nc].countEat();
             }
-            dfs(nr, nc, (int) (eat + count), s + i, depth + 1);
-
-            monsters.stream()
-                    .filter(v-> v.isLocation(nr, nc))
-                    .forEach(v->v.backDie());
+            dfs(nr, nc, eat + count, s + i, depth + 1);
+            moveMonsters[nr][nc].notVisited();
         }
     }
 
-    private static boolean isNotMove(int nr, int nc, boolean isDie, boolean isPackman) {
-        return isDie || outOfBlock(nr, nc) || isPackman;
+    public static void init() {
+        moveMonsters = new Monsters[4][4];
+        for(int i=0; i<4; i++) {
+            for(int j=0; j<4; j++) {
+                moveMonsters[i][j] = new Monsters();
+            }
+        }
     }
 
-    private static boolean isPackman(int nr, int nc) {
-        return packman.isLocate(nr, nc);
+    public static void deleteMonster() {
+        for(int i=0; i<4; i++) {
+            for(int j=0; j<4; j++) {
+                Monsters curMonsters = die[i][j];
+                curMonsters.increaseDeleteCnt();
+                curMonsters.delete();
+            }
+        }
     }
 
-    private static boolean isDie(int nr, int nc) {
-        return monsters.stream()
-                .filter(v -> v.isDie(nr, nc))
-                .count() >= 1;
+    public static void calculateAnswer() {
+        for(int i=0; i<4; i++) {
+            for(int j=0; j<4; j++) {
+                List<Monster> monsterList = moveMonsters[i][j].getMonsters();
+                for(Monster monster: monsterList) {
+                    answer++;
+                }
+            }
+        }
     }
 
-    static void monsterReplicate() {
-        List<Monster> aliveMonsters = monsters.stream()
-                .filter(v -> v.isAlive())
-                .collect(Collectors.toList());
 
-        aliveMonsters.forEach(Monster::replicate);
+    private static boolean isNotMove(boolean isDie, boolean isPackman) {
+        return isDie || isPackman;
     }
 
+    static class Monsters {
+        ArrayList<Monster> monsters;
+
+        public Monsters() {
+            this.monsters = new ArrayList<>();
+        }
+
+        public void addMonster(Monster monster) {
+            this.monsters.add(monster);
+        }
+
+        public ArrayList<Monster> getMonsters() {
+            return monsters;
+        }
+
+        public boolean isVisited() {
+            return monsters.stream()
+                    .filter(v -> v.isWillDie >= 1)
+                    .count() >= 1;
+        }
+
+        public void visited() {
+            monsters.stream()
+                    .forEach(v->v.willDie());
+        }
+
+        public void notVisited() {
+            monsters.stream()
+                    .forEach(v->v.backDie());
+        }
+
+
+
+        public void die() {
+            monsters.forEach(v-> v.die());
+        }
+
+        public void increaseDeleteCnt() {
+            monsters.stream()
+                    .filter(v-> v.isDeleteStart())
+                    .forEach(Monster::increaseDeleteCnt);
+        }
+
+        public void delete() {
+            monsters.stream()
+                    .filter(v-> v.isCompleteDelete())
+                    .forEach(Monster::delete);
+        }
+
+        public boolean isDie() {
+            return monsters.stream()
+                    .filter(Monster::isDie)
+                    .count() >= 1;
+        }
+
+        public void removeAll() {
+            monsters.clear();
+        }
+
+        public void add(List<Monster> monsters) {
+            monsters.stream()
+                    .forEach(v-> this.monsters.add(v));
+        }
+
+        public int countEat() {
+            return (int) monsters.stream()
+                    .filter(v -> v.canEat())
+                    .count();
+        }
+    }
 
 
     static class Monster {
-        int r, c, d;
-        boolean isDie, isDelete, isHatch;
+        int d;
+        boolean isDie, isDelete;
         int isWillDie = 0; //boolean -> int
         int deleteCnt = 0;
 
-        public Monster(int r, int c, int d, boolean isDie, boolean isDelete, boolean isHatch) {
-            this.r = r;
-            this.c = c;
+        public Monster(int d, boolean isDie, boolean isDelete) {
             this.d = d;
             this.isDie = isDie;
             this.isDelete = isDelete;
-            this.isHatch = isHatch;
         }
 
         public void willDie() {
@@ -215,7 +335,7 @@ public class Main {
         }
 
         public boolean isDeleteStart() {
-            return this.isDie;
+            return isDie && !isDelete;
         }
 
         public void increaseDeleteCnt() {
@@ -230,46 +350,21 @@ public class Main {
             this.isDelete = true;
         }
 
-        public boolean isTotalAlive() {
-            return !isDie && !isDelete;
+        public boolean isDie() {
+            return isDie && !isDelete; //틀린 부분
         }
 
-        public void replicate() {
-            monsters.add(new Monster(r, c, d, false, false, false));
-        }
-
-        public boolean isAlive() {
-            return !isDie && !isDelete && isHatch; //틀린 부분 / 다음부턴 isEgg로
-        }
-
-        public boolean isAlive(int nr, int nc) {
-            return r == nr && c == nc && isAlive();
-        }
-
-        public boolean isLocation(int r, int c) {
-            return this.r == r && this.c == c && isAlive();
-        }
-
-        public boolean isDie(int nr, int nc) {
-            return r == nr && c == nc && isDie && !isDelete; //틀린 부분
-        }
-
-        public boolean canEat(int nr, int nc) {
-            return isAlive(nr, nc) && isWillDie >= 1;
+        public boolean canEat() {
+            return isWillDie >= 1;
         }
 
         public void die() {
-            deleteCnt = 0;
             this.isDie = true;
         }
 
-        public boolean isAbleEatMonster(int r, int c) {
-            return this.r == r && this.c == c && isAlive();
-        }
-
-        public int[] getNext() {
-            int nr = this.r + dr[this.d];
-            int nc = this.c + dc[this.d];
+        public int[] getNext(int curR, int curC) {
+            int nr = curR + dr[this.d];
+            int nc = curC + dc[this.d];
 
             return new int[]{nr, nc};
         }
@@ -278,18 +373,6 @@ public class Main {
             this.d = (this.d + 1) % 8;
         }
 
-        public boolean isHatch() {
-            return this.isHatch;
-        }
-
-        public void hatch() {
-            isHatch = true;
-        }
-
-        public void move(int nr, int nc) {
-            this.r = nr;
-            this.c = nc;
-        }
     }
 
     static class Packman implements Comparable<Packman> {
@@ -346,10 +429,12 @@ public class Main {
         public void move(int moveD) {
             this.r = this.r + pdr[moveD];
             this.c = this.c + pdc[moveD];
-
-            monsters.stream()
-                    .filter(v-> v.isAbleEatMonster(r, c))
-                    .forEach(v-> v.die());
+            ArrayList<Monster> monsters1 = moveMonsters[this.r][this.c].getMonsters();
+            if(monsters1.size() > 0) {
+                die[this.r][this.c].getMonsters().add(monsters1.get(0));
+                die[this.r][this.c].die();
+                moveMonsters[this.r][this.c].removeAll();
+            }
         }
     }
 
