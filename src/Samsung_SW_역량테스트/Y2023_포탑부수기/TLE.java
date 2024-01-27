@@ -10,18 +10,20 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.StringTokenizer;
 
-public class Main {
+public class TLE {
 
     static int N, M, K;
     static Turret[][] turrets;
     static int[] dr = {0, 1, 0, -1};
     static int[] dc = {1, 0, -1, 0};
-    static boolean isArrive = false;
+    static int totalCnt = 0;
+    static int minCnt = Integer.MAX_VALUE;
 
     static int depthCnt = 0;
 
     static Turret startTurret;
     static Turret targetTurret;
+    static boolean isComplete = false;
     static String routes;
     static int cnt = 0;
 
@@ -63,27 +65,32 @@ public class Main {
         turn = 1;
         for(int i=0; i<K; i++) {
             if(cnt <= 1) break;
-            isArrive = false;
+            totalCnt = 0;
+            minCnt = Integer.MAX_VALUE;
             depthCnt = 0;
+            isComplete = false;
             cnt = 0;
 
             findStart();
             findTarget();
             startTurret.start(turn);
 
-            isArrive = bfs();
-            if (isArrive) {
+            bfs();
+            if (totalCnt >= 1) {
+                depthCnt = minCnt;
+                StringBuilder sb = new StringBuilder();
+                dfs(0, startTurret.r, startTurret.c, sb);
+                System.out.println(routes);
                 attackTurret(startTurret.r, startTurret.c, 0, routes);
                 targetAttack();
             }
 
-            if (!isArrive) {
+            if (totalCnt < 1) {
                 bomb(targetTurret.r, targetTurret.c);
             }
 
             finalTurret();
             increaseAttack();
-
             turn+=1;
         }
 
@@ -167,11 +174,11 @@ public class Main {
     }
 
     static void attackTurret(int r, int c, int depth, String move) {
-        if(depth == depthCnt - 1) {
+        if(depth == depthCnt-1) {
             return ;
         }
 
-        int nr = r + dr[move.charAt(depth) - '0'];
+        int nr = r + dr[move.charAt(depth) - '0']; //1122
         int nc = c + dc[move.charAt(depth) - '0'];
 
         int[] over = overOfBlock(nr, nc);
@@ -184,10 +191,37 @@ public class Main {
         turrets[over[0]][over[1]].pushAttack(startTurret.attack/2);
     }
 
-    static boolean bfs() {
+    static void dfs(int depth, int r, int c, StringBuilder sb) {
+        if(isComplete) {
+            return ;
+        }
+
+        if(depth > depthCnt) {
+            return ;
+        }
+
+        if(depth == depthCnt && r == targetTurret.r && c == targetTurret.c) {
+            routes = sb.toString();
+            isComplete = true;
+            return ;
+        }
+
+        for(int i=0; i<4; i++) {
+            int nr = r + dr[i];
+            int nc = c + dc[i];
+
+            int before = sb.length();
+            int[] over = overOfBlock(nr, nc);
+            if(turrets[over[0]][over[1]].isBroke) continue;
+            dfs(depth + 1, over[0], over[1], sb.append(i));
+            sb.setLength(before);
+        }
+    }
+
+    static void bfs() {
         boolean[][] visited = new boolean[N][M];
         Queue<Node> queue = new LinkedList<>();
-        queue.add(new Node(startTurret.r, startTurret.c, 0, ""));
+        queue.add(new Node(startTurret.r, startTurret.c, 0));
         visited[startTurret.r][startTurret.c] = true;
 
         while(!queue.isEmpty()) {
@@ -200,32 +234,31 @@ public class Main {
 
                 if(turrets[over[0]][over[1]].isBroke) continue;
                 if(visited[over[0]][over[1]]) continue;
+                if(minCnt != Integer.MAX_VALUE && cur.cnt > minCnt) continue;
 
                 if(over[0] == targetTurret.r && over[1] == targetTurret.c) {
-                    depthCnt = cur.depth + 1;
-                    routes = cur.routes;
-                    return true;
+                    minCnt = Math.min(minCnt, cur.cnt + 1);
+                    if(minCnt == cur.cnt+1) {
+                        totalCnt += 1;
+                    }
+                    continue;
                 }
 
                 visited[over[0]][over[1]] = true;
                 if(turrets[over[0]][over[1]].isBroke) continue;
-                queue.add(new Node(over[0], over[1], cur.depth + 1, cur.routes + i));
+                queue.add(new Node(over[0], over[1], cur.cnt + 1));
             }
         }
-
-        return false;
 
     }
 
     static class Node {
-        int r, c, depth;
-        String routes;
+        int r, c, cnt;
 
-        public Node(int r, int c, int depth, String routes) {
+        public Node(int r, int c, int cnt) {
             this.r = r;
             this.c = c;
-            this.depth = depth;
-            this.routes = routes;
+            this.cnt = cnt;
         }
     }
 
